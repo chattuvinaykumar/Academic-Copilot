@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FileUpload } from "./components/FileUpload";
 import { SummaryResultView } from "./components/SummaryResultView";
 import { CreatePaperView } from "./components/CreatePaperView";
@@ -11,19 +11,55 @@ import { ResearchGapView } from "./components/ResearchGapView";
 import { ChatWithPaperView } from "./components/ChatWithPaperView";
 import { ProgressIndicator } from "./components/ProgressIndicator";
 import { Toast } from "./components/Toast";
+import { LoginView } from "./components/LoginView";
 import { SummaryResult } from "./types";
-import { BookOpen, FilePlus, MessageSquare, Briefcase } from "lucide-react";
+import { BookOpen, FilePlus, MessageSquare, Briefcase, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { supabase } from "./lib/supabase";
+import { User } from "@supabase/supabase-js";
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isGuestMode, setIsGuestMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"summarize" | "chat" | "create_paper" | "create_project" | "gap_analysis">("summarize");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SummaryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          setIsGuestMode(false);
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setIsGuestMode(false);
+  };
+  
+  const handleContinueAsGuest = () => {
+    setIsGuestMode(true);
+  };
   
   const handleUploadSuccess = async (docId: string, file: File) => {
+
     setDocumentId(docId);
     setLoading(true);
     setError(null);
@@ -56,10 +92,54 @@ export default function App() {
     setDocumentId(null);
   };
 
+  if (authLoading) {
+    return <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!user && !isGuestMode) {
+    return <LoginView onContinueAsGuest={handleContinueAsGuest} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#FDFDFD] px-4 py-8 font-sans selection:bg-blue-100 selection:text-blue-900">
       <main className="max-w-6xl mx-auto flex flex-col h-full">
-        <header className="mb-8 text-center space-y-4">
+        <header className="mb-8 text-center space-y-4 relative">
+          <div className="absolute right-0 top-0 flex items-center gap-4">
+            {user ? (
+              <>
+                <div className="flex items-center gap-2">
+                  {user.user_metadata?.avatar_url && (
+                    <img src={user.user_metadata.avatar_url} alt="Profile" className="w-8 h-8 rounded-full border border-gray-200" />
+                  )}
+                  <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                    {user.user_metadata?.full_name || user.email}
+                  </span>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1 text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </>
+            ) : isGuestMode ? (
+              <div className="flex items-center gap-4">
+                 <div className="bg-amber-100 text-amber-800 px-3 py-1 text-xs font-bold rounded-full border border-amber-200 shadow-sm flex items-center">
+                    Guest Mode
+                 </div>
+                 <button
+                    onClick={() => setIsGuestMode(false)}
+                    className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1 text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg"
+                    title="Sign In"
+                 >
+                    <span className="hidden sm:inline">Sign In</span>
+                 </button>
+              </div>
+            ) : null}
+          </div>
+          
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}

@@ -28,12 +28,33 @@ export interface PaperSection {
   content: string; // Markdown
 }
 
+export interface PaperReview {
+  overallScore: number;
+  categoryScores: {
+    novelty: number;
+    technicalDepth: number;
+    literatureReview: number;
+    methodology: number;
+    references: number;
+    academicWriting: number;
+    reproducibility: number;
+  };
+  strengths: string[];
+  weaknesses: string[];
+  actionableImprovements: string[];
+}
+
 export interface GeneratedPaper {
   title: string;
   abstract: string;
   keywords: string[];
   sections: PaperSection[];
   references: string;
+  partial?: boolean;
+  mode?: "draft" | "submission";
+  version?: number;
+  review?: PaperReview;
+  previousVersion?: GeneratedPaper;
 }
 
 export interface ProjectFormData {
@@ -51,6 +72,7 @@ export interface GeneratedProject {
   domain: string;
   projectType: string;
   sections: PaperSection[];
+  partial?: boolean;
 }
 
 export interface Draft {
