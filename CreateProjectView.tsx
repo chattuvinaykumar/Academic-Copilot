@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ProjectFormData, GeneratedProject } from "../types";
+import { ProjectFormData, GeneratedProject } from "./types";
 import { motion, AnimatePresence } from "motion/react";
 import { Save, FileText, Loader2, Download, Copy, Briefcase, CheckCircle, XCircle } from "lucide-react";
 import Markdown from "react-markdown";
@@ -9,6 +9,7 @@ import { jsPDF } from "jspdf";
 import { ProgressIndicator } from "./ProgressIndicator";
 import { DocumentSkeleton } from "./DocumentSkeleton";
 import { Toast } from "./Toast";
+import { getAuthHeaders } from "./supabase";
 
 const DEFAULT_FORM: ProjectFormData = {
   title: "",
@@ -55,9 +56,10 @@ export function CreateProjectView() {
     setError(null);
     setComplianceReport(null);
     try {
+      const authHeaders = await getAuthHeaders();
       const response = await fetch("/api/generate-project", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(formData)
       });
       if (!response.ok) {
@@ -94,7 +96,7 @@ export function CreateProjectView() {
           const fullText = projectOutput.sections.map((s: any) => s.content).join("\n");
           const compResponse = await fetch("/api/check-compliance", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
               body: JSON.stringify({
                   publicationFormat: projectOutput.projectType,
                   paperContent: fullText
@@ -142,7 +144,7 @@ export function CreateProjectView() {
     try {
       const response = await fetch("/api/resume-generation", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({
           type: "project report",
           existingContent: generatedProject,

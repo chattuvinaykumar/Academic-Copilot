@@ -4,6 +4,7 @@ import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import fs from "fs";
+import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 import { PDFParse } from "pdf-parse";
 
@@ -16,6 +17,45 @@ const upload = multer({
 const documentCache = new Map<string, { buffer: Buffer, mimeType: string, text?: string }>();
 
 const MAX_RETRIES = 5;
+
+const supabaseServer = createClient(
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "",
+  process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "",
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
+  }
+);
+
+async function requireSupabaseSession(req: any, res: any, next: any) {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+    if (!token) {
+      return res.status(401).json({ error: "Authentication required." });
+    }
+
+    if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
+      return res.status(503).json({ error: "Authentication configuration is missing." });
+    }
+
+    const { data: { user }, error } = await supabaseServer.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(401).json({ error: "Invalid or expired session." });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("Supabase session validation failed:", error);
+    return res.status(401).json({ error: "Invalid or expired session." });
+  }
+}
 
 const FALLBACK_MODELS = [
   "gemini-3.5-flash",
@@ -222,7 +262,7 @@ async function startServer() {
   });
 
   // API endpoints
-  app.post("/api/upload-document", (req, res, next) => {
+  app.post("/api/upload-document", requireSupabaseSession, (req, res, next) => {
     upload.single("paper")(req, res, (err) => {
       if (err) {
         console.error("Multer upload error:", err);
@@ -278,7 +318,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/summarize-document", async (req, res) => {
+  app.post("/api/summarize-document", requireSupabaseSession, async (req, res) => {
     try {
       const { documentId } = req.body;
       if (!documentId || !documentCache.has(documentId)) {
@@ -354,7 +394,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/generate-paper", async (req, res) => {
+  app.post("/api/generate-paper", requireSupabaseSession, async (req, res) => {
     try {
       const data = req.body;
       const draftMode = data.draftMode || "submission";
@@ -475,7 +515,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/suggest-assistance", async (req, res) => {
+  app.post("/api/suggest-assistance", requireSupabaseSession, async (req, res) => {
     try {
       const { topic, domain, assistanceType, currentContent } = req.body;
       const prompt = `
@@ -688,7 +728,7 @@ async function fetchAcademicReferences(ai: GoogleGenAI, topic: string, keywords:
       return uniqueRefs;
 }
 
-  app.post("/api/find-references", async (req, res) => {
+  app.post("/api/find-references", requireSupabaseSession, async (req, res) => {
     try {
       const data = req.body;
       let references = await fetchAcademicReferences(ai, data.topic, data.keywords, data.domain);
@@ -758,7 +798,7 @@ ${JSON.stringify(references, null, 2)}
     }
   });
 
-  app.post("/api/chat-document", async (req, res) => {
+  app.post("/api/chat-document", requireSupabaseSession, async (req, res) => {
     try {
       const { documentId, history, message } = req.body;
       if (!documentId || !documentCache.has(documentId)) {
@@ -850,7 +890,7 @@ ${JSON.stringify(references, null, 2)}
     }
   });
 
-  app.post("/api/analyze-gaps", async (req, res) => {
+  app.post("/api/analyze-gaps", requireSupabaseSession, async (req, res) => {
     try {
       const data = req.body;
       const { title, domain, description } = data;
@@ -981,7 +1021,7 @@ ${JSON.stringify(references, null, 2)}
     }
   });
 
-  app.post("/api/generate-project", async (req, res) => {
+  app.post("/api/generate-project", requireSupabaseSession, async (req, res) => {
     try {
       const data = req.body;
       
@@ -1075,7 +1115,7 @@ ${JSON.stringify(references, null, 2)}
     }
   });
 
-  app.post("/api/resume-generation", async (req, res) => {
+  app.post("/api/resume-generation", requireSupabaseSession, async (req, res) => {
     try {
       const { type, existingContent, promptData } = req.body;
       
@@ -1114,7 +1154,7 @@ ${JSON.stringify(references, null, 2)}
     }
   });
 
-  app.post("/api/check-compliance", async (req, res) => {
+  app.post("/api/check-compliance", requireSupabaseSession, async (req, res) => {
     try {
       const { publicationFormat, paperContent } = req.body;
       const textToAnalyze = paperContent ? paperContent.substring(0, 50000) : "No content provided.";
@@ -1217,7 +1257,7 @@ ${JSON.stringify(references, null, 2)}
     }
   });
 
-  app.post("/api/review-paper", async (req, res) => {
+  app.post("/api/review-paper", requireSupabaseSession, async (req, res) => {
     try {
       const { paperContent } = req.body;
       const textToAnalyze = paperContent ? paperContent.substring(0, 50000) : "No content provided.";
@@ -1269,7 +1309,7 @@ ${JSON.stringify(references, null, 2)}
     }
   });
 
-  app.post("/api/improve-paper", async (req, res) => {
+  app.post("/api/improve-paper", requireSupabaseSession, async (req, res) => {
     try {
       const { paperContent, review, topic } = req.body;
       const textToImprove = paperContent ? paperContent.substring(0, 50000) : "No content provided.";
@@ -1322,7 +1362,7 @@ ${JSON.stringify(references, null, 2)}
     }
   });
 
-  app.post("/api/generate-bibtex", async (req, res) => {
+  app.post("/api/generate-bibtex", requireSupabaseSession, async (req, res) => {
     try {
       const { references } = req.body;
       const prompt = `

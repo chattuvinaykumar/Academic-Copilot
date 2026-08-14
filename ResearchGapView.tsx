@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Search, Loader2, Target, Lightbulb, FileSearch, ArrowRight, Activity, Zap } from "lucide-react";
 import Markdown from "react-markdown";
+import { getAuthHeaders } from "./supabase";
 
 interface GapReport {
   query: string;
@@ -38,9 +39,10 @@ export function ResearchGapView() {
     setLoading(true);
     setError(null);
     try {
+      const authHeaders = await getAuthHeaders();
       const response = await fetch("/api/analyze-gaps", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(formData)
       });
       if (!response.ok) {

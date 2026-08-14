@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from './supabase';
 import { BookOpen, AlertCircle, Loader2, User } from 'lucide-react';
 import { motion } from 'motion/react';
 

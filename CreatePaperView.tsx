@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { PaperFormData, GeneratedPaper } from "../types";
+import { PaperFormData, GeneratedPaper } from "./types";
 import { motion, AnimatePresence } from "motion/react";
 import { Save, FileText, Loader2, Download, Copy, RefreshCw, PenTool, Lightbulb, Search, CheckCircle, Bot, ArrowRight, CheckCircle2 } from "lucide-react";
 import Markdown from "react-markdown";
@@ -10,6 +10,7 @@ import { jsPDF } from "jspdf";
 import { ProgressIndicator } from "./ProgressIndicator";
 import { DocumentSkeleton } from "./DocumentSkeleton";
 import { Toast } from "./Toast";
+import { getAuthHeaders } from "./supabase";
 
 interface VerifiedReference {
   title: string;
@@ -118,9 +119,10 @@ export function CreatePaperView() {
     setAgentStates({ planner: "running", reference: "waiting", writer: "waiting", compliance: "waiting", export: "waiting" });
     
     try {
+      const authHeaders = await getAuthHeaders();
       const planReq = await fetch("/api/suggest-assistance", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           topic: formData.topic,
           domain: formData.domain,
@@ -146,9 +148,10 @@ export function CreatePaperView() {
     }, 4000);
 
     try {
+      const authHeaders = await getAuthHeaders();
       const response = await fetch("/api/generate-paper", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ ...formData, draftMode })
       });
       if (!response.ok) {
@@ -213,7 +216,7 @@ export function CreatePaperView() {
         const fullText = paperOutput.title + "\n\nAbstract\n" + paperOutput.abstract + "\n\n" + paperOutput.sections.map((s: any) => s.title + "\n" + s.content).join("\n\n") + "\n\nReferences\n" + paperOutput.references;
         const compResponse = await fetch("/api/check-compliance", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
           body: JSON.stringify({ publicationFormat: formData.publicationFormat, paperContent: fullText }),
           signal: controller.signal
         });
@@ -259,7 +262,7 @@ export function CreatePaperView() {
     try {
       const response = await fetch("/api/resume-generation", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({
           type: "research paper",
           existingContent: generatedPaper,
@@ -307,7 +310,7 @@ export function CreatePaperView() {
       const fullText = generatedPaper.title + "\n\nAbstract\n" + generatedPaper.abstract + "\n\n" + generatedPaper.sections.map((s: any) => s.title + "\n" + s.content).join("\n\n") + "\n\nReferences\n" + generatedPaper.references;
       const response = await fetch("/api/review-paper", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({ paperContent: fullText })
       });
       if (!response.ok) throw new Error("Failed to review paper");
@@ -332,7 +335,7 @@ export function CreatePaperView() {
       const fullText = generatedPaper.title + "\n\nAbstract\n" + generatedPaper.abstract + "\n\n" + generatedPaper.sections.map((s: any) => s.title + "\n" + s.content).join("\n\n") + "\n\nReferences\n" + generatedPaper.references;
       const response = await fetch("/api/improve-paper", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({ 
            paperContent: fullText, 
            review: generatedPaper.review, 
@@ -384,7 +387,7 @@ export function CreatePaperView() {
       const paperContext = generatedPaper.title + " | " + generatedPaper.abstract;
       const response = await fetch("/api/generate-section", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({ topic: formData.topic, sectionTitle, currentContent, paperContext })
       });
       if (!response.ok) throw new Error("Section regeneration failed");
@@ -418,7 +421,7 @@ export function CreatePaperView() {
     try {
       const response = await fetch("/api/suggest-assistance", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({
           topic: formData.topic,
           domain: formData.domain,
@@ -464,7 +467,7 @@ export function CreatePaperView() {
     try {
       const response = await fetch("/api/find-references", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify(formData)
       });
       if (!response.ok) throw new Error("Failed to find references");
@@ -689,7 +692,7 @@ ${generatedPaper.references.replace(/&/g, '\\&')}
       try {
           const response = await fetch("/api/generate-bibtex", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
               body: JSON.stringify({ references: referencesToUse })
           });
           if (!response.ok) throw new Error("Failed to generate BibTeX");

@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { UploadCloud, File as FileIcon, X, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { getAuthHeaders } from "./supabase";
 
 interface FileUploadProps {
   onUploadSuccess: (documentId: string, file: File) => void;
@@ -58,8 +59,10 @@ export function FileUpload({ onUploadSuccess, isLoading }: FileUploadProps) {
       const formData = new FormData();
       formData.append("paper", selectedFile);
 
+      const authHeaders = await getAuthHeaders();
       const response = await fetch("/api/upload-document", {
         method: "POST",
+        headers: authHeaders,
         body: formData,
       });
 

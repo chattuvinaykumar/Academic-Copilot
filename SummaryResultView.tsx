@@ -1,5 +1,5 @@
 import React from "react";
-import { SummaryResult as SummaryResultType } from "../types";
+import { SummaryResult as SummaryResultType } from "./types";
 import { motion } from "motion/react";
 import { FileText, Key, Download, Copy, RefreshCw, Briefcase, Activity, CheckCircle } from "lucide-react";
 import { saveAs } from "file-saver";

@@ -3,19 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import React, { useState, useEffect } from "react";
-import { FileUpload } from "./components/FileUpload";
-import { SummaryResultView } from "./components/SummaryResultView";
-import { CreatePaperView } from "./components/CreatePaperView";
-import { CreateProjectView } from "./components/CreateProjectView";
-import { ResearchGapView } from "./components/ResearchGapView";
-import { ChatWithPaperView } from "./components/ChatWithPaperView";
-import { ProgressIndicator } from "./components/ProgressIndicator";
-import { Toast } from "./components/Toast";
-import { LoginView } from "./components/LoginView";
+import { FileUpload } from "./FileUpload";
+import { SummaryResultView } from "./SummaryResultView";
+import { CreatePaperView } from "./CreatePaperView";
+import { CreateProjectView } from "./CreateProjectView";
+import { ResearchGapView } from "./ResearchGapView";
+import { ChatWithPaperView } from "./ChatWithPaperView";
+import { ProgressIndicator } from "./ProgressIndicator";
+import { Toast } from "./Toast";
+import { LoginView } from "./LoginView";
 import { SummaryResult } from "./types";
 import { BookOpen, FilePlus, MessageSquare, Briefcase, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { supabase } from "./lib/supabase";
+import { supabase, getAuthHeaders } from "./supabase";
 import { User } from "@supabase/supabase-js";
 
 export default function App() {
@@ -64,9 +64,10 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
+      const authHeaders = await getAuthHeaders();
       const response = await fetch("/api/summarize-document", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ documentId: docId }),
       });
 

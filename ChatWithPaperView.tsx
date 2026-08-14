@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ChatMessage } from "../types";
+import { ChatMessage } from "./types";
 import { motion, AnimatePresence } from "motion/react";
 import { Send, Loader2, Bot, User, AlertCircle } from "lucide-react";
 import Markdown from "react-markdown";
+import { getAuthHeaders } from "./supabase";
 
 function ChatLoadingMessages() {
   const [index, setIndex] = useState(0);
@@ -64,9 +65,10 @@ export function ChatWithPaperView({ documentId }: ChatWithPaperViewProps) {
       // Exclude the very first greeting message from history to save tokens unless necessary
       const history = newMessages.slice(1, -1);
 
+      const authHeaders = await getAuthHeaders();
       const response = await fetch("/api/chat-document", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           documentId,
           history,
